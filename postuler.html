@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <title>Postuler — Talent Engine</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .auth-card select,.auth-card textarea{width:100%;border:1px solid #e1e5ed;border-radius:8px;padding:11px 12px;font-size:13px;font-family:inherit;outline:0;background:#fff}
+    .auth-card textarea{resize:vertical}
+    .apply-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.apply-grid .span2{grid-column:1/-1}
+    @media(max-width:600px){.apply-grid{grid-template-columns:1fr}}
+    .consent{flex-direction:row!important;align-items:flex-start!important;gap:10px!important;font-weight:400!important;font-size:12px!important;line-height:1.5}
+    .consent input{width:auto!important;margin-top:3px}
+    .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  </style>
+</head>
+<body class="auth-body">
+  <div class="auth-card" style="width:min(640px,100%)">
+    <div class="brand-mark">TE</div>
+    <h1>Postuler</h1>
+    <p class="auth-sub">Remplissez ce formulaire pour envoyer votre candidature. Aucun compte n'est nécessaire.</p>
+    <div id="closed" class="auth-notice hidden">Les candidatures en ligne ne sont pas disponibles pour le moment. Merci de réessayer plus tard.</div>
+    <div id="done" class="hidden" style="text-align:center;padding:10px 0">
+      <h2 style="font-family:Manrope,sans-serif;margin:0 0 10px">Merci !</h2>
+      <p style="color:#687389;line-height:1.7;margin:0">Votre candidature a bien été envoyée. Notre équipe l'examinera et vous contactera si votre profil correspond au poste.</p>
+    </div>
+    <form id="applyForm" novalidate>
+      <div class="apply-grid">
+        <label>Nom complet *<input name="name" required minlength="2" maxlength="100" placeholder="Ex. : Amina Kabeya" autocomplete="name"></label>
+        <label>Adresse e-mail *<input name="email" required type="email" maxlength="150" placeholder="nom@exemple.com" autocomplete="email"></label>
+        <label>Téléphone<input name="phone" type="tel" maxlength="40" placeholder="+243…" autocomplete="tel"></label>
+        <label>Poste visé *<span id="jobField" style="display:contents"><input name="job" required minlength="2" maxlength="100" placeholder="Ex. : Informaticien"></span><small id="jobDesc" style="color:#8b95a6;font-weight:400;line-height:1.5"></small></label>
+        <label>Niveau de formation *
+          <select name="education" required><option value="">Choisir un niveau</option><option value="10">Secondaire / diplôme d'État</option><option value="14">Graduat / Bac+3</option><option value="17">Licence / Bac+4 ou Bac+5</option><option value="20">Master ou plus</option></select>
+        </label>
+        <label>Années d'expérience *
+          <select name="experience" required><option value="">Choisir une tranche</option><option value="0">Aucune expérience</option><option value="5">Moins d'un an</option><option value="10">1 à 2 ans</option><option value="15">3 à 4 ans</option><option value="20">5 ans ou plus</option></select>
+        </label>
+        <label class="span2">Compétences professionnelles *<textarea name="skills" required rows="3" maxlength="1000" placeholder="Ex. : HTML, Excel, gestion de projet, communication…"></textarea></label>
+        <label class="span2">Motivation / résumé de votre profil<textarea name="motivation" rows="4" maxlength="1500" placeholder="Quelques lignes sur votre intérêt pour le poste…"></textarea></label>
+      </div>
+      <label>CV (PDF, DOC ou DOCX — 5 Mo maximum, facultatif)<input name="cv" id="cvFile" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label>
+      <div class="hp" aria-hidden="true"><label>Ne pas remplir<input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <label class="consent"><input type="checkbox" name="consent" required> J'accepte que mes informations soient utilisées uniquement pour l'examen de ma candidature.</label>
+      <button class="primary-btn" id="sendBtn" type="submit">Envoyer ma candidature</button>
+    </form>
+    <p id="msg" class="auth-msg" role="status"></p>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
+  <script>
+  (async () => {
+    const $ = s => document.querySelector(s);
+    const msg = (t, ok) => { const m = $("#msg"); m.textContent = t || ""; m.className = "auth-msg" + (ok ? " ok" : ""); };
+    const finish = () => { $("#applyForm").classList.add("hidden"); $("#done").classList.remove("hidden"); msg(""); window.scrollTo(0, 0); };
+    try { await TE.init(); } catch (e) {}
+    if (!TE.cloud) { $("#applyForm").classList.add("hidden"); $("#closed").classList.remove("hidden"); return; }
+    const pub = window.supabase.createClient(TE.cfg.url, TE.cfg.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    let jobs = [];
+    try {
+      const r = await pub.from("jobs").select("id,title,description").eq("is_open", true).order("title");
+      if (!r.error && r.data && r.data.length) {
+        jobs = r.data;
+        $("#jobField").innerHTML = '<select name="jobId" id="jobSel" required style="width:100%"><option value="">Choisir un poste</option>' +
+          jobs.map(j => '<option value="' + j.id + '">' + TE.esc(j.title) + '</option>').join("") + '</select>';
+        $("#jobSel").addEventListener("change", () => { const j = jobs.find(x => x.id === $("#jobSel").value); $("#jobDesc").textContent = (j && j.description) || ""; });
+      }
+    } catch (e) { /* repli : champ libre */ }
+    $("#applyForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const form = e.target; if (!form.reportValidity()) return;
+      const f = new FormData(form), g = n => String(f.get(n) || "").trim(), btn = $("#sendBtn");
+      if (g("website")) { finish(); return; }
+      if (Date.now() - Number(localStorage.getItem("te_last_apply") || 0) < 60000) { msg("Veuillez patienter une minute avant d'envoyer une autre candidature."); return; }
+      btn.disabled = true; msg("Envoi en cours…");
+      const cv = $("#cvFile").files[0]; let cvPath = null, cvName = null;
+      if (cv) {
+        const ext = (cv.name.split(".").pop() || "").toLowerCase();
+        const types = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+        if (!types[ext]) { msg("Format de CV non accepté : utilisez un PDF, DOC ou DOCX."); btn.disabled = false; return; }
+        if (cv.size > 5 * 1024 * 1024) { msg("Le CV dépasse 5 Mo. Choisissez un fichier plus léger."); btn.disabled = false; return; }
+        const path = "incoming/" + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2)) + "." + ext;
+        try {
+          const up = await pub.storage.from("cvs").upload(path, cv, { contentType: types[ext], upsert: false });
+          if (up.error) throw up.error;
+          cvPath = path; cvName = cv.name.replace(/[^\w.\- ()àâäçéèêëîïôöùûüÿ]/gi, "_").slice(0, 150);
+        } catch (err) { console.error(err); msg("L'envoi du CV a échoué. Réessayez ou envoyez votre candidature sans CV."); btn.disabled = false; return; }
+      }
+      const sel = jobs.length ? jobs.find(x => x.id === g("jobId")) : null;
+      const row = { name: g("name"), email: g("email"), phone: g("phone") || null, job: sel ? sel.title : g("job"), job_id: sel ? sel.id : null, education: g("education") || null,
+        experience: g("experience") || null, skills: g("skills"), motivation: g("motivation") || null, consent: true, cv_path: cvPath, cv_name: cvName };
+      try {
+        const { error } = await pub.from("applications").insert(row);
+        if (error) throw error;
+        localStorage.setItem("te_last_apply", String(Date.now())); finish();
+      } catch (err) { console.error(err); msg("L'envoi a échoué. Vérifiez vos informations ou réessayez plus tard."); }
+      btn.disabled = false;
+    });
+  })();
+  </script>
+</body>
+</html>

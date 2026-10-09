@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <title>Talent Engine — Candidatures reçues</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" style="text-decoration:none;color:inherit">
+        <div class="brand-mark">TE</div>
+        <div><strong>Talent Engine</strong><small>RECRUITMENT WORKSPACE</small></div>
+      </a>
+      <div class="workspace-label">ESPACE RECRUTEUR</div>
+      <nav class="side-nav" aria-label="Navigation principale">
+        <a class="nav-item" href="index.html"><span>▦</span> Tableau de bord</a>
+        <a class="nav-item" href="candidatures.html"><span>♙</span> Candidatures</a>
+        <a class="nav-item" href="formulaire.html"><span>＋</span> Formulaire de candidature</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-icon">✓</div>
+        <strong>Décision humaine</strong>
+        <p>Le score aide à prioriser les dossiers. Il ne remplace pas l'examen du recruteur.</p>
+        <span class="version"></span>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">ADMINISTRATION</p><h1>Candidatures reçues</h1></div>
+        <div class="topbar-actions"><span class="status-pill"><i></i> </span></div>
+      </header>
+      <section class="view">
+        <div class="section-intro"><div><h2>Candidatures reçues</h2><p>Candidatures envoyées via la page publique. Évaluez-les, puis validez-les ou refusez-les.</p></div></div>
+        <div class="panel form-panel" style="margin-bottom:16px">
+          <div class="form-section-title"><span>🔗</span><div><h3>Lien de candidature à partager</h3><p>Les candidats l'ouvrent sans compte.</p></div></div>
+          <input id="pubLink" class="cfg-input" readonly>
+          <div class="db-actions"><button class="secondary-btn" id="copyLink">Copier le lien</button><a class="secondary-btn" id="openLink" target="_blank" rel="noopener" style="text-decoration:none">Ouvrir la page</a></div>
+        </div>
+        <div class="db-actions" style="margin:0 0 14px"><button class="primary-btn" id="tabNew">Nouvelles (0)</button><button class="secondary-btn" id="tabRef">Refusées (0)</button><select id="sortSel" class="role-select"><option value="recent">Tri : plus récentes</option><option value="score">Tri : meilleur score automatique</option></select></div>
+        <div id="appsBox"><div class="panel"><div class="empty-state"><div class="empty-art">✉</div><h4>Chargement…</h4></div></div></div>
+      </section>
+      <footer class="app-footer"><span>Talent Engine</span><span></span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
+  <script>
+  (async () => {
+    const $ = s => document.querySelector(s), esc = TE.esc, box = $("#appsBox");
+    const toast = m => { const t = $("#toast"); t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3200); };
+    const notice = (t, p, extra) => '<div class="panel"><div class="empty-state"><div class="empty-art">✉</div><h4>' + t + '</h4><p>' + p + '</p>' + (extra || "") + '</div></div>';
+    const EDU = { "10": "Secondaire / diplôme d'État", "14": "Graduat / Bac+3", "17": "Licence / Bac+4 ou Bac+5", "20": "Master ou plus" };
+    const EXP = { "0": "Aucune expérience", "5": "Moins d'un an", "10": "1 à 2 ans", "15": "3 à 4 ans", "20": "5 ans ou plus" };
+    const fmt = d => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    const link = new URL("postuler.html", location.href).href;
+    $("#pubLink").value = link; $("#openLink").href = link;
+    $("#copyLink").onclick = async () => { try { await navigator.clipboard.writeText(link); toast("Lien copié."); } catch (e) { toast("Copie impossible : sélectionnez le lien."); } };
+    let apps = [], tab = "nouvelle", jobs = [], sortMode = "recent";
+    const autoFor = a => { const j = jobs.find(x => x.id === a.job_id); return j ? TE.autoScore(a, j) : null; };
+    const autoTotal = a => { const r = autoFor(a); return r ? r.scores.educationScore + r.scores.skillsScore + r.scores.experienceScore + r.scores.fitScore : -1; };
+
+    function render() {
+      const news = apps.filter(a => a.status === "nouvelle"), refs = apps.filter(a => a.status === "refusee");
+      $("#tabNew").textContent = "Nouvelles (" + news.length + ")"; $("#tabRef").textContent = "Refusées (" + refs.length + ")";
+      $("#tabNew").className = tab === "nouvelle" ? "primary-btn" : "secondary-btn"; $("#tabRef").className = tab === "refusee" ? "primary-btn" : "secondary-btn";
+      const list = (tab === "nouvelle" ? news : refs).slice();
+      if (sortMode === "score") list.sort((x, y) => autoTotal(y) - autoTotal(x));
+      if (!list.length) { box.innerHTML = notice(tab === "nouvelle" ? "Aucune nouvelle candidature" : "Aucune candidature refusée", tab === "nouvelle" ? "Partagez le lien ci-dessus pour recevoir des candidatures." : "", ""); return; }
+      box.innerHTML = list.map(a => {
+        const ed = Number(a.education || 0), ex = Number(a.experience || 0);
+        const auto = autoFor(a), jobObj = jobs.find(x => x.id === a.job_id);
+        const sc = auto ? auto.scores : { educationScore: ed, skillsScore: 20, experienceScore: ex, fitScore: 15, motivationScore: 7 };
+        const explain = auto
+          ? '<p class="form-hint" style="margin:0 0 10px">Calcul automatique selon le poste « ' + esc(jobObj.title) + ' » (modifiable). Compétences trouvées : ' + (esc(auto.details.reqHit.join(", ")) || "aucune") + ' · manquantes : ' + (esc(auto.details.reqMiss.join(", ")) || "aucune") + (auto.details.bonusHit.length ? ' · bonus : ' + esc(auto.details.bonusHit.join(", ")) : "") + '. La motivation est à évaluer par vos soins.</p>'
+          : '<p class="form-hint" style="margin:0 0 10px">Aucun critère défini pour ce poste : points pré-remplis d\'après les réponses du candidat, à ajuster.</p>';
+        const autoRow = auto ? '<div class="breakdown-row"><span>Score automatique (hors motivation)</span><strong>' + (sc.educationScore + sc.skillsScore + sc.experienceScore + sc.fitScore) + '/90</strong></div>' : "";
+        const evalPanel = tab === "nouvelle" ? '<div id="eval-' + a.id + '" class="hidden" style="margin-top:14px;border-top:1px solid #eceff5;padding-top:14px">' +
+          explain +
+          '<div class="score-fields">' +
+          '<label>Formation <span>0–20</span><input data-s="educationScore" type="number" min="0" max="20" value="' + sc.educationScore + '"></label>' +
+          '<label>Compétences <span>0–30</span><input data-s="skillsScore" type="number" min="0" max="30" value="' + sc.skillsScore + '"></label>' +
+          '<label>Expérience <span>0–20</span><input data-s="experienceScore" type="number" min="0" max="20" value="' + sc.experienceScore + '"></label>' +
+          '<label>Correspondance <span>0–20</span><input data-s="fitScore" type="number" min="0" max="20" value="' + sc.fitScore + '"></label>' +
+          '<label>Motivation <span>0–10</span><input data-s="motivationScore" type="number" min="0" max="10" value="' + sc.motivationScore + '"></label>' +
+          '<div class="live-score"><span>Total</span><strong data-total>' + (sc.educationScore + sc.skillsScore + sc.experienceScore + sc.fitScore + sc.motivationScore) + '<span>/100</span></strong></div></div>' +
+          '<div class="db-actions"><button class="primary-btn" data-approve="' + a.id + '">Valider → candidatures</button></div></div>' : "";
+        const actions = tab === "nouvelle"
+          ? '<button class="secondary-btn" data-toggle="' + a.id + '">Évaluer</button><button class="danger-btn" data-refuse="' + a.id + '">Refuser</button>'
+          : '<button class="secondary-btn" data-restore="' + a.id + '">Restaurer</button><button class="danger-btn" data-remove="' + a.id + '">Supprimer</button>';
+        return '<article class="panel form-panel" data-card="' + a.id + '" style="margin-bottom:14px">' +
+          '<div class="candidate-cell"><div class="avatar">' + esc(a.name.slice(0, 2).toUpperCase()) + '</div><div><strong>' + esc(a.name) + '</strong><small>' + esc(a.job) + ' · reçue le ' + fmt(a.created_at) + '</small></div></div>' +
+          '<div class="breakdown-row"><span>E-mail</span><strong style="overflow-wrap:anywhere">' + esc(a.email) + '</strong></div>' +
+          (a.phone ? '<div class="breakdown-row"><span>Téléphone</span><strong>' + esc(a.phone) + '</strong></div>' : "") +
+          '<div class="breakdown-row"><span>Formation</span><strong>' + esc(EDU[a.education] || "—") + '</strong></div>' +
+          '<div class="breakdown-row"><span>Expérience</span><strong>' + esc(EXP[a.experience] || "—") + '</strong></div>' +
+          autoRow + '<p class="form-hint" style="margin-top:12px"><strong>Compétences :</strong> ' + esc(a.skills) + '</p>' +
+          (a.motivation ? '<p class="form-hint"><strong>Motivation :</strong> ' + esc(a.motivation) + '</p>' : "") +
+          (a.cv_path ? '<div class="db-actions" style="margin-top:10px"><button class="secondary-btn" data-cv="' + esc(a.cv_path) + '">Ouvrir le CV' + (a.cv_name ? ' (' + esc(a.cv_name) + ')' : '') + '</button></div>' : "") +
+          '<div class="db-actions">' + actions + '</div>' + evalPanel + '</article>';
+      }).join("");
+    }
+    async function load() {
+      const { data, error } = await TE.client.from("applications").select("*").order("created_at", { ascending: false });
+      if (error) throw error; apps = data;
+      try { const jr = await TE.client.from("jobs").select("*"); jobs = jr.error ? [] : jr.data; } catch (e) { jobs = []; }
+      render();
+    }
+    async function setStatus(id, status, okMsg) {
+      const { data, error } = await TE.client.from("applications").update({ status }).eq("id", id).select("id");
+      if (error) throw error; if (!data.length) throw new Error("row-level security"); toast(okMsg); await load();
+    }
+    function wire() {
+      $("#sortSel").onchange = () => { sortMode = $("#sortSel").value; render(); };
+      $("#tabNew").onclick = () => { tab = "nouvelle"; render(); };
+      $("#tabRef").onclick = () => { tab = "refusee"; render(); };
+      box.addEventListener("input", e => {
+        const panel = e.target.closest('[id^="eval-"]'); if (!panel || !e.target.dataset.s) return;
+        const sum = [...panel.querySelectorAll("[data-s]")].reduce((t, i) => t + (Number(i.value) || 0), 0);
+        panel.querySelector("[data-total]").innerHTML = sum + "<span>/100</span>";
+      });
+      box.addEventListener("click", async e => {
+        const b = e.target.closest("button"); if (!b) return;
+        try {
+          if (b.dataset.cv) { await TE.openCv(b.dataset.cv); }
+          else if (b.dataset.toggle) { document.getElementById("eval-" + b.dataset.toggle).classList.toggle("hidden"); }
+          else if (b.dataset.refuse) { await setStatus(b.dataset.refuse, "refusee", "Candidature refusée."); }
+          else if (b.dataset.restore) { await setStatus(b.dataset.restore, "nouvelle", "Candidature restaurée."); }
+          else if (b.dataset.remove) { if (!confirm("Supprimer définitivement cette candidature ?")) return;
+            const gone = apps.find(x => x.id === b.dataset.remove);
+            const { data, error } = await TE.client.from("applications").delete().eq("id", b.dataset.remove).select("id");
+            if (error) throw error; if (!data.length) throw new Error("row-level security"); if (gone && gone.cv_path) await TE.removeCv(gone.cv_path); toast("Candidature supprimée."); await load(); }
+          else if (b.dataset.approve) {
+            const a = apps.find(x => x.id === b.dataset.approve), panel = document.getElementById("eval-" + a.id), sc = {};
+            const max = { educationScore: 20, skillsScore: 30, experienceScore: 20, fitScore: 20, motivationScore: 10 };
+            for (const i of panel.querySelectorAll("[data-s]")) { const v = Number(i.value);
+              if (!Number.isFinite(v) || v < 0 || v > max[i.dataset.s]) { toast("Vérifiez les points attribués."); return; } sc[i.dataset.s] = v; }
+            if (!confirm("Valider la candidature de " + a.name + " ?")) return;
+            b.disabled = true;
+            await TE.addCandidate({ name: a.name, email: a.email, phone: a.phone || "", job: a.job, education: a.education || "", educationLabel: EDU[a.education] || "Non renseigné",
+              experience: a.experience || "", experienceLabel: EXP[a.experience] || "Non renseigné", skills: a.skills, motivation: a.motivation || "", cvPath: a.cv_path || "", cvName: a.cv_name || "", ...sc });
+            const { error } = await TE.client.from("applications").delete().eq("id", a.id);
+            toast(error ? "Candidature ajoutée, mais non retirée de la liste : supprimez-la manuellement." : "Candidature validée et ajoutée aux candidatures.");
+            await load();
+          }
+        } catch (err) { b.disabled = false; toast(TE.errMsg(err)); }
+      });
+    }
+    try {
+      await TE.init(); if (TE.redirecting) return; TE.decorateShell();
+      if (!TE.cloud) { box.innerHTML = notice("Indisponible en mode local", "Configurez la base de données pour recevoir des candidatures en ligne.", '<a class="primary-btn" href="base-de-donnees.html">Configurer la base</a>'); return; }
+      if (!TE.canWrite()) { box.innerHTML = notice("Accès réservé", "Seuls les administrateurs et recruteurs peuvent traiter les candidatures reçues.", ""); return; }
+      wire(); await load();
+    } catch (e) { box.innerHTML = notice("Erreur", esc(TE.errMsg(e)) + "<br>Avez-vous réexécuté le script SQL mis à jour ?", ""); }
+  })();
+  </script>
+</body>
+</html>
