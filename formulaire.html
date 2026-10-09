@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <title>Talent Engine — Formulaire de candidature</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" style="text-decoration:none;color:inherit">
+        <div class="brand-mark">TE</div>
+        <div><strong>Talent Engine</strong><small>RECRUITMENT WORKSPACE</small></div>
+      </a>
+      <div class="workspace-label">ESPACE RECRUTEUR</div>
+      
+      <nav class="side-nav" aria-label="Navigation principale">
+        <a class="nav-item " href="index.html"><span>▦</span> Tableau de bord</a>
+        <a class="nav-item " href="candidatures.html"><span>♙</span> Candidatures <b id="navCount">0</b></a>
+        <a class="nav-item active" href="formulaire.html"><span>＋</span> Formulaire de candidature</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-icon">✓</div>
+        <strong>Décision humaine</strong>
+        <p>Le score aide à prioriser les dossiers. Il ne remplace pas l'examen du recruteur.</p>
+        <span class="version">Prototype multipage · Stockage local</span>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">ESPACE DE RECRUTEMENT</p><h1>Formulaire de candidature</h1></div>
+        <div class="topbar-actions"><span class="status-pill"><i></i> Prototype actif</span><a class="secondary-btn" href="candidatures.html">Voir les candidatures</a></div>
+      </header>
+      <section id="addView" class="view">
+        <div class="section-intro"><div><h2>Nouvelle candidature</h2><p>Enregistrez les informations essentielles puis évaluez le profil.</p></div><span class="required-note">* Champs obligatoires</span></div>
+        <form id="candidateForm" class="form-layout">
+          <div class="panel form-panel">
+            <div class="form-section-title"><span>01</span><div><h3>Informations personnelles</h3><p>Coordonnées pour le suivi de la candidature.</p></div></div>
+            <div class="form-grid">
+              <label>Nom complet *<input name="name" required maxlength="100" placeholder="Ex. : Amina Kabeya"></label>
+              <label>Adresse e-mail *<input name="email" required type="email" maxlength="150" placeholder="nom@exemple.com"></label>
+              <label>Téléphone<input name="phone" type="tel" maxlength="40" placeholder="+243…"></label>
+              <label>Poste recherché *<input name="job" required maxlength="100" placeholder="Ex. : Informaticien"></label>
+            </div>
+          </div>
+          <div class="panel form-panel">
+            <div class="form-section-title"><span>02</span><div><h3>Profil professionnel</h3><p>Éléments liés aux exigences du poste.</p></div></div>
+            <div class="form-grid">
+              <label>Niveau de formation *
+                <select name="education" required><option value="">Choisir un niveau</option><option value="10">Secondaire / diplôme d'État</option><option value="14">Graduat / Bac+3</option><option value="17">Licence / Bac+4 ou Bac+5</option><option value="20">Master ou plus</option></select>
+              </label>
+              <label>Années d'expérience *
+                <select name="experience" required><option value="">Choisir une tranche</option><option value="0">Aucune expérience</option><option value="5">Moins d'un an</option><option value="10">1 à 2 ans</option><option value="15">3 à 4 ans</option><option value="20">5 ans ou plus</option></select>
+              </label>
+              <label class="span-two">Compétences professionnelles *<textarea name="skills" required rows="3" maxlength="1000" placeholder="Ex. : HTML, Excel, gestion de projet, communication…"></textarea><small>Séparez les compétences par des virgules.</small></label>
+              <label class="span-two">Motivation / résumé du profil<textarea name="motivation" rows="4" maxlength="1500" placeholder="Quelques lignes sur l'intérêt du candidat pour le poste…"></textarea></label>
+            </div>
+          </div>
+          <div class="panel form-panel">
+            <div class="form-section-title"><span>03</span><div><h3>Évaluation du recruteur</h3><p>Attribuez des points selon des critères professionnels définis à l'avance.</p></div></div>
+            <div class="score-fields">
+              <label>Formation pertinente <span>0–20 pts</span><input name="educationScore" type="number" min="0" max="20" value="15" required></label>
+              <label>Compétences techniques <span>0–30 pts</span><input name="skillsScore" type="number" min="0" max="30" value="20" required></label>
+              <label>Expérience <span>0–20 pts</span><input name="experienceScore" type="number" min="0" max="20" value="10" required></label>
+              <label>Correspondance au poste <span>0–20 pts</span><input name="fitScore" type="number" min="0" max="20" value="15" required></label>
+              <label>Motivation <span>0–10 pts</span><input name="motivationScore" type="number" min="0" max="10" value="7" required></label>
+              <div class="live-score"><span>Score total estimé</span><strong id="liveScore">67<span>/100</span></strong><small id="liveStatus">À examiner</small></div>
+            </div>
+            <p class="form-hint">Les points sont saisis par le recruteur. La formation, l'expérience ou la motivation ne doivent pas servir de substituts à des critères pertinents pour le poste.</p>
+          </div>
+          <div class="form-actions"><button type="button" class="secondary-btn" id="cancelFormBtn">Annuler</button><button type="submit" class="primary-btn">Enregistrer la candidature →</button></div>
+        </form>
+      </section>
+      <footer class="app-footer"><span>Talent Engine · Prototype de démonstration</span><span>Les données sont conservées dans ce navigateur.</span></footer>
+    </main>
+  </div>
+  <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card"><button class="modal-close" data-close-modal aria-label="Fermer">×</button><div id="modalContent"></div></div>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
