@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <title>Talent Engine — Base de données</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" style="text-decoration:none;color:inherit">
+        <div class="brand-mark">TE</div>
+        <div><strong>Talent Engine</strong><small>RECRUITMENT WORKSPACE</small></div>
+      </a>
+      <div class="workspace-label">ESPACE RECRUTEUR</div>
+      <nav class="side-nav" aria-label="Navigation principale">
+        <a class="nav-item" href="index.html"><span>▦</span> Tableau de bord</a>
+        <a class="nav-item" href="candidatures.html"><span>♙</span> Candidatures</a>
+        <a class="nav-item" href="formulaire.html"><span>＋</span> Formulaire de candidature</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-icon">✓</div>
+        <strong>Décision humaine</strong>
+        <p>Le score aide à prioriser les dossiers. Il ne remplace pas l'examen du recruteur.</p>
+        <span class="version"></span>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">ADMINISTRATION</p><h1>Base de données</h1></div>
+        <div class="topbar-actions"><span class="status-pill"><i></i> </span></div>
+      </header>
+      <section class="view">
+        <div class="section-intro"><div><h2>Base de données</h2><p>Connexion, migration des données et installation.</p></div></div>
+        <div class="form-layout">
+          <div class="panel form-panel">
+            <div class="form-section-title"><span>01</span><div><h3>État de la connexion</h3><p>Mode actuel de l'application.</p></div></div>
+            <div id="statusRows"></div>
+            <div class="db-actions"><button class="secondary-btn" id="testBtn">Tester la connexion</button><a class="secondary-btn" id="loginLink" href="login.html" style="text-decoration:none">Se connecter</a></div>
+            <p id="dbMsg" role="status" style="font-size:12px;font-weight:700;color:#584bd0;margin:12px 0 0;overflow-wrap:anywhere"></p>
+          </div>
+
+          <div class="panel form-panel">
+            <div class="form-section-title"><span>02</span><div><h3>Configuration Supabase</h3><p>URL du projet et clé « anon public » (Project Settings › API).</p></div></div>
+            <div class="form-grid">
+              <label class="span-two">URL du projet<input id="cfgUrl" class="cfg-input" placeholder="https://xxxx.supabase.co" autocomplete="off"></label>
+              <label class="span-two">Clé anon public<input id="cfgKey" class="cfg-input" placeholder="eyJ…" autocomplete="off"></label>
+            </div>
+            <div class="db-actions"><button class="primary-btn" id="cfgSave">Enregistrer sur cet appareil</button><button class="secondary-btn" id="cfgClear">Effacer</button></div>
+            <p class="form-hint">Cet enregistrement ne vaut que pour <strong>ce navigateur</strong>. Pour que tous les utilisateurs se connectent automatiquement, copiez le contenu ci-dessous dans le fichier <code>config.js</code> du dépôt GitHub.</p>
+            <pre class="db-pre" id="cfgSnippet"></pre>
+            <div class="db-actions"><button class="secondary-btn" id="copySnippet">Copier config.js</button></div>
+          </div>
+
+          <div class="panel form-panel" id="dataPanel">
+            <div class="form-section-title"><span>03</span><div><h3>Données</h3><p>Migration, export et import des candidatures.</p></div></div>
+            <div id="countRows"></div>
+            <div class="db-actions">
+              <button class="primary-btn" id="migrateBtn">Envoyer les données locales vers la base</button>
+              <button class="secondary-btn" id="exportJson">Exporter (JSON)</button>
+              <button class="secondary-btn" id="importBtn">Importer (JSON)</button>
+              <button class="danger-btn" id="clearLocal">Vider les données locales</button>
+              <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+            </div>
+          </div>
+
+          <div class="panel form-panel">
+            <div class="form-section-title"><span>04</span><div><h3>Installation (une seule fois)</h3><p>Créer la base gratuitement avec Supabase.</p></div></div>
+            <ol class="steps">
+              <li>Créez un compte et un projet sur <strong>supabase.com</strong> (offre gratuite).</li>
+              <li>Ouvrez <strong>SQL Editor › New query</strong>, collez le script ci-dessous, puis <strong>Run</strong>.</li>
+              <li>Dans <strong>Project Settings › API</strong>, copiez l'<em>URL</em> et la clé <em>anon public</em> dans la section 02.</li>
+              <li>Pour tester vite : <strong>Authentication › Providers › Email</strong>, désactivez « Confirm email ».</li>
+              <li>Dans <strong>Authentication › URL Configuration</strong>, mettez votre adresse GitHub Pages comme Site URL.</li>
+              <li>Ouvrez <strong>login.html</strong> › « Créer un compte » : le premier compte devient administrateur.</li>
+            </ol>
+            <pre class="db-pre" id="sqlBox">Chargement du script…</pre>
+            <div class="db-actions"><button class="secondary-btn" id="copySql">Copier le script SQL</button></div>
+          </div>
+        </div>
+      </section>
+      <footer class="app-footer"><span>Talent Engine</span><span></span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
+  <script>
+  (async () => {
+    const $ = s => document.querySelector(s), esc = TE.esc;
+    const showMsg = m => { const d = document.getElementById("dbMsg"); if (d) d.textContent = m; };
+    window.addEventListener("error", e => showMsg("Erreur : " + e.message));
+    window.addEventListener("unhandledrejection", e => showMsg("Erreur : " + ((e.reason && e.reason.message) || e.reason)));
+    const toast = m => { showMsg(m); const t = $("#toast"); t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3200); };
+    const copy = async (t, ok) => { try { await navigator.clipboard.writeText(t); toast(ok); } catch (e) { toast("Copie impossible : sélectionnez le texte manuellement."); } };
+    try { await TE.init(); } catch (e) {}
+    if (TE.redirecting) return;
+    TE.decorateShell();
+    const logged = TE.cloud && TE.session;
+    const allowed = !TE.cloud || (logged && TE.isAdmin());
+
+    $("#statusRows").innerHTML = [
+      ["Mode", TE.cloud ? "Base de données partagée (Supabase)" : TE.sdkMissing ? "Mode local — bibliothèque Supabase non chargée" : "Mode local (ce navigateur uniquement)"],
+      ["Base", TE.configured ? TE.cfg.url : "Non configurée"],
+      ["Connecté", logged ? ((TE.profile && TE.profile.email) || TE.session.user.email) : "—"],
+      ["Rôle", logged ? (TE.ROLE[TE.role()] || "—") : "—"]
+    ].map(([k, v]) => '<div class="breakdown-row"><span>' + k + '</span><strong>' + esc(v) + '</strong></div>').join("");
+    $("#loginLink").style.display = (TE.cloud && !logged) ? "" : "none";
+
+    $("#cfgUrl").value = TE.cfg.url; $("#cfgKey").value = TE.cfg.key;
+    const snippet = () => 'window.TE_CONFIG = {\n  SUPABASE_URL: "' + $("#cfgUrl").value.trim() + '",\n  SUPABASE_ANON_KEY: "' + $("#cfgKey").value.trim() + '"\n};';
+    const refreshSnippet = () => { $("#cfgSnippet").textContent = snippet(); };
+    $("#cfgUrl").oninput = $("#cfgKey").oninput = refreshSnippet; refreshSnippet();
+    $("#copySnippet").onclick = () => copy(snippet(), "config.js copié.");
+    $("#cfgSave").onclick = () => {
+      const url = $("#cfgUrl").value.trim().replace(/\/+$/, ""), key = $("#cfgKey").value.trim();
+      if (!/^https:\/\/.+/.test(url) || key.length < 20) { toast("URL (https://…) ou clé invalide."); return; }
+      localStorage.setItem("te_config", JSON.stringify({ url, key })); toast("Configuration enregistrée."); setTimeout(() => location.reload(), 600);
+    };
+    $("#cfgClear").onclick = () => { localStorage.removeItem("te_config"); toast("Configuration locale effacée."); setTimeout(() => location.reload(), 600); };
+
+    $("#testBtn").onclick = async () => {
+      showMsg("Test en cours…");
+      if (!TE.cloud) { toast("Aucune base configurée."); return; }
+      try { const { count, error } = await TE.client.from("candidates").select("id", { count: "exact", head: true }); if (error) throw error;
+        toast("Connexion OK" + (logged ? " · " + count + " candidature(s) visibles." : " (non connecté : 0 visible).")); }
+      catch (e) { toast(TE.errMsg(e)); }
+    };
+
+    const dataPanel = $("#dataPanel");
+    if (!allowed) dataPanel.style.display = "none";
+    async function counts() {
+      const local = TE.loadLocal().length; let cloudN = "—";
+      if (TE.cloud && logged) { try { cloudN = (await TE.fetchCandidates()).length; } catch (e) { cloudN = "erreur"; } }
+      $("#countRows").innerHTML = '<div class="breakdown-row"><span>Candidatures locales (ce navigateur)</span><strong>' + local + '</strong></div>' +
+        (TE.cloud ? '<div class="breakdown-row"><span>Candidatures dans la base</span><strong>' + cloudN + '</strong></div>' : "");
+      $("#migrateBtn").style.display = (TE.cloud && logged && local > 0 && TE.canWrite()) ? "" : "none";
+      $("#clearLocal").style.display = local > 0 ? "" : "none";
+    }
+    if (allowed) await counts();
+
+    $("#migrateBtn").onclick = async () => {
+      const local = TE.loadLocal(); if (!local.length || !confirm("Envoyer " + local.length + " candidature(s) locales vers la base ?")) return;
+      try { await TE.addMany(local); toast("Migration réussie."); if (confirm("Vider maintenant les données locales ?")) { TE.saveLocal([]); } await counts(); }
+      catch (e) { toast(TE.errMsg(e)); }
+    };
+    $("#clearLocal").onclick = async () => { if (!confirm("Supprimer définitivement les données locales de ce navigateur ?")) return; TE.saveLocal([]); toast("Données locales supprimées."); await counts(); };
+    $("#exportJson").onclick = async () => {
+      try { const rows = await TE.fetchCandidates(); const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "candidatures-" + new Date().toISOString().slice(0, 10) + ".json"; a.click(); toast(rows.length + " candidature(s) exportée(s)."); }
+      catch (e) { toast(TE.errMsg(e)); }
+    };
+    $("#importBtn").onclick = () => $("#importFile").click();
+    $("#importFile").onchange = async ev => {
+      const file = ev.target.files[0]; if (!file) return;
+      try {
+        const arr = JSON.parse(await file.text());
+        if (!Array.isArray(arr)) throw new Error("Le fichier doit contenir une liste de candidatures.");
+        const ok = arr.filter(c => c && c.name && c.email && c.job);
+        if (!ok.length) throw new Error("Aucune candidature valide (nom, e-mail et poste requis).");
+        if (TE.cloud && !TE.canWrite()) throw new Error("row-level security : votre rôle ne permet pas l'import.");
+        if (!confirm("Importer " + ok.length + " candidature(s) ?")) return;
+        await TE.addMany(ok); toast(ok.length + " candidature(s) importée(s)."); await counts();
+      } catch (e) { toast(TE.errMsg(e)); }
+      ev.target.value = "";
+    };
+
+    let sql = "";
+    try { const r = await fetch("supabase-schema.sql", { cache: "no-store" }); if (!r.ok) throw 0; sql = await r.text(); $("#sqlBox").textContent = sql; }
+    catch (e) { $("#sqlBox").textContent = "Script introuvable. Ouvrez le fichier supabase-schema.sql du dépôt et copiez son contenu."; }
+    $("#copySql").onclick = () => sql ? copy(sql, "Script SQL copié.") : toast("Script indisponible.");
+  })();
+  </script>
+</body>
+</html>
