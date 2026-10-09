@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <title>Talent Engine — Utilisateurs</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" style="text-decoration:none;color:inherit">
+        <div class="brand-mark">TE</div>
+        <div><strong>Talent Engine</strong><small>RECRUITMENT WORKSPACE</small></div>
+      </a>
+      <div class="workspace-label">ESPACE RECRUTEUR</div>
+      <nav class="side-nav" aria-label="Navigation principale">
+        <a class="nav-item" href="index.html"><span>▦</span> Tableau de bord</a>
+        <a class="nav-item" href="candidatures.html"><span>♙</span> Candidatures</a>
+        <a class="nav-item" href="formulaire.html"><span>＋</span> Formulaire de candidature</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-icon">✓</div>
+        <strong>Décision humaine</strong>
+        <p>Le score aide à prioriser les dossiers. Il ne remplace pas l'examen du recruteur.</p>
+        <span class="version"></span>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">ADMINISTRATION</p><h1>Utilisateurs</h1></div>
+        <div class="topbar-actions"><span class="status-pill"><i></i> </span></div>
+      </header>
+      <section class="view">
+        <div class="section-intro"><div><h2>Gestion des utilisateurs</h2><p>Approuvez les nouveaux comptes et attribuez un rôle à chaque membre de l'équipe.</p></div></div>
+        <div class="stats-grid" id="userStats" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div>
+        <div class="panel" id="usersBox"><div class="empty-state"><div class="empty-art">☰</div><h4>Chargement…</h4></div></div>
+        <div class="panel form-panel" style="margin-top:16px">
+          <div class="form-section-title"><span>?</span><div><h3>Que permet chaque rôle ?</h3><p>Les droits sont appliqués par la base de données elle-même.</p></div></div>
+          <div class="breakdown-row"><span><strong>Administrateur</strong></span><span>Tout voir, ajouter, supprimer, gérer les comptes</span></div>
+          <div class="breakdown-row"><span><strong>Recruteur</strong></span><span>Tout voir, ajouter, supprimer ses propres candidatures</span></div>
+          <div class="breakdown-row"><span><strong>Lecteur</strong></span><span>Consulter uniquement</span></div>
+          <div class="breakdown-row"><span><strong>En attente</strong></span><span>Aucun accès (compte à approuver ou désactivé)</span></div>
+        </div>
+      </section>
+      <footer class="app-footer"><span>Talent Engine</span><span></span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
+  <script>
+  (async () => {
+    const $ = s => document.querySelector(s), esc = TE.esc, box = $("#usersBox");
+    const toast = m => { const t = $("#toast"); t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3000); };
+    const notice = (t, p, extra) => '<div class="empty-state"><div class="empty-art">☰</div><h4>' + t + '</h4><p>' + p + '</p>' + (extra || "") + '</div>';
+    const fmt = d => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    const me = () => TE.session && TE.session.user.id;
+    async function load() {
+      const { data, error } = await TE.client.from("profiles").select("*").order("created_at", { ascending: true });
+      if (error) throw error;
+      const pending = data.filter(u => u.role === "en_attente").length;
+      $("#userStats").innerHTML = [["Comptes", data.length, "Total"], ["En attente", pending, "À approuver"], ["Administrateurs", data.filter(u => u.role === "admin").length, "Accès complet"]]
+        .map(([l, v, s]) => '<article class="stat-card"><p>' + l + '</p><strong>' + v + '</strong><small>' + s + '</small></article>').join("");
+      box.innerHTML = '<div class="table-wrap"><table><thead><tr><th>UTILISATEUR</th><th>INSCRIT LE</th><th>RÔLE</th></tr></thead><tbody>' +
+        data.map(u => '<tr><td><div class="candidate-cell"><div class="avatar">' + esc((u.full_name || u.email || "?").slice(0, 2).toUpperCase()) + '</div><div><strong>' + esc(u.full_name || "—") + (u.id === me() ? " (vous)" : "") + '</strong><small>' + esc(u.email) + '</small></div></div></td><td>' + fmt(u.created_at) +
+          '</td><td><select class="role-select" data-id="' + u.id + '"' + (u.id === me() ? " disabled" : "") + '>' +
+          Object.entries(TE.ROLE).map(([k, v]) => '<option value="' + k + '"' + (u.role === k ? " selected" : "") + '>' + v + '</option>').join("") + '</select></td></tr>').join("") + '</tbody></table></div>';
+    }
+    try {
+      await TE.init(); if (TE.redirecting) return; TE.decorateShell();
+      if (!TE.cloud) { box.innerHTML = notice("Multi-utilisateurs indisponible en mode local", "Configurez la base de données pour gérer plusieurs comptes.", '<a class="primary-btn" href="base-de-donnees.html">Configurer la base</a>'); return; }
+      if (!TE.isAdmin()) { box.innerHTML = notice("Accès réservé aux administrateurs", "Demandez à un administrateur de modifier votre rôle.", ""); return; }
+      await load();
+      box.addEventListener("change", async e => {
+        const sel = e.target.closest("select[data-id]"); if (!sel) return;
+        try {
+          const { data, error } = await TE.client.from("profiles").update({ role: sel.value }).eq("id", sel.dataset.id).select("id");
+          if (error) throw error; if (!data.length) throw new Error("row-level security");
+          toast("Rôle mis à jour."); await load();
+        } catch (err) { toast(TE.errMsg(err)); await load(); }
+      });
+    } catch (e) { box.innerHTML = notice("Erreur", esc(TE.errMsg(e)), ""); }
+  })();
+  </script>
+</body>
+</html>

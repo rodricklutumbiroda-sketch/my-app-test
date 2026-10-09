@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <title>Talent Engine — Connexion</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="brand-mark">TE</div>
+    <h1>Talent Engine</h1>
+    <p class="auth-sub">Espace recruteur · connexion sécurisée</p>
+    <div id="localNotice" class="auth-notice hidden">La base de données n'est pas encore configurée : l'application fonctionne en <strong>mode local</strong> (un seul navigateur, un seul utilisateur).<br><br><a href="base-de-donnees.html">Configurer la base de données</a> · <a href="index.html">Continuer en mode local</a></div>
+    <div id="authBox">
+      <div class="auth-tabs"><button type="button" id="tabIn" class="active">Connexion</button><button type="button" id="tabUp">Créer un compte</button></div>
+      <form id="authForm">
+        <label id="nameRow" class="hidden">Nom complet<input name="name" maxlength="100" placeholder="Ex. : Amina Kabeya" autocomplete="name"></label>
+        <label>Adresse e-mail<input name="email" type="email" required autocomplete="email" placeholder="nom@exemple.com"></label>
+        <label>Mot de passe<input name="password" type="password" required minlength="6" autocomplete="current-password" placeholder="6 caractères minimum"></label>
+        <button class="primary-btn" id="submitBtn" type="submit">Se connecter</button>
+      </form>
+      <p id="authMsg" class="auth-msg" role="status"></p>
+      <p class="auth-hint">Le premier compte créé devient administrateur. Les suivants doivent être approuvés par un administrateur.</p>
+    </div>
+    <p class="auth-hint"><a href="base-de-donnees.html">Paramètres de la base de données</a></p>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
+  <script>
+  (async () => {
+    const $ = s => document.querySelector(s);
+    let mode = "in";
+    try { await TE.init(); } catch (e) {}
+    if (!TE.cloud) { $("#authBox").classList.add("hidden"); $("#localNotice").classList.remove("hidden");
+      if (TE.sdkMissing) $("#localNotice").insertAdjacentHTML("afterbegin", "<strong>Bibliothèque Supabase non chargée</strong> (vérifiez votre connexion Internet).<br><br>"); return; }
+    if (TE.session) { location.replace("index.html"); return; }
+    const msg = (t, ok) => { const m = $("#authMsg"); m.textContent = t || ""; m.className = "auth-msg" + (ok ? " ok" : ""); };
+    const setMode = m => { mode = m; $("#tabIn").classList.toggle("active", m === "in"); $("#tabUp").classList.toggle("active", m === "up");
+      $("#nameRow").classList.toggle("hidden", m === "in"); $("#submitBtn").textContent = m === "in" ? "Se connecter" : "Créer mon compte";
+      $("#authForm").elements.password.autocomplete = m === "in" ? "current-password" : "new-password"; msg(""); };
+    $("#tabIn").onclick = () => setMode("in"); $("#tabUp").onclick = () => setMode("up");
+    $("#authForm").addEventListener("submit", async e => {
+      e.preventDefault(); const f = new FormData(e.target), btn = $("#submitBtn");
+      const email = String(f.get("email")).trim(), password = String(f.get("password")), name = String(f.get("name") || "").trim();
+      btn.disabled = true; msg("");
+      try {
+        if (mode === "in") { const { error } = await TE.signIn(email, password); if (error) throw error; location.replace("index.html"); }
+        else { const { data, error } = await TE.signUp(email, password, name); if (error) throw error;
+          if (data.session) location.replace("index.html"); else msg("Compte créé. Confirmez votre e-mail si demandé, puis connectez-vous.", true); }
+      } catch (err) { msg(TE.errMsg(err)); }
+      btn.disabled = false;
+    });
+  })();
+  </script>
+</body>
+</html>

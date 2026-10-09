@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101828">
+  <title>Talent Engine — Tableau de bord</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html" style="text-decoration:none;color:inherit">
+        <div class="brand-mark">TE</div>
+        <div><strong>Talent Engine</strong><small>RECRUITMENT WORKSPACE</small></div>
+      </a>
+      <div class="workspace-label">ESPACE RECRUTEUR</div>
+      
+      <nav class="side-nav" aria-label="Navigation principale">
+        <a class="nav-item active" href="index.html"><span>▦</span> Tableau de bord</a>
+        <a class="nav-item " href="candidatures.html"><span>♙</span> Candidatures <b id="navCount">0</b></a>
+        <a class="nav-item " href="formulaire.html"><span>＋</span> Formulaire de candidature</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-icon">✓</div>
+        <strong>Décision humaine</strong>
+        <p>Le score aide à prioriser les dossiers. Il ne remplace pas l'examen du recruteur.</p>
+        <span class="version">Prototype multipage · Stockage local</span>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">ESPACE DE RECRUTEMENT</p><h1>Tableau de bord</h1></div>
+        <div class="topbar-actions"><span class="status-pill"><i></i> Prototype actif</span><a class="primary-btn" href="formulaire.html">＋ Nouvelle candidature</a></div>
+      </header>
+      <section id="dashboardView" class="view">
+        <div class="welcome-row">
+          <div>
+            <h2>Bonjour, recruteur 👋</h2>
+            <p>Suivez les candidatures et identifiez les profils à examiner en priorité.</p>
+          </div>
+          <div class="date-chip" id="todayLabel"></div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card"><div class="stat-icon purple">♙</div><p>Candidatures reçues</p><strong id="totalStat">0</strong><small>Total enregistré</small></article>
+          <article class="stat-card"><div class="stat-icon green">✓</div><p>Profils prioritaires</p><strong id="priorityStat">0</strong><small>Score de 80 à 100</small></article>
+          <article class="stat-card"><div class="stat-icon blue">◎</div><p>Score moyen</p><strong id="averageStat">—</strong><small>Sur 100 points</small></article>
+          <article class="stat-card"><div class="stat-icon orange">⌕</div><p>À examiner</p><strong id="reviewStat">0</strong><small>Score de 60 à 79</small></article>
+        </div>
+
+        <div class="content-grid">
+          <section class="panel candidate-panel">
+            <div class="panel-heading">
+              <div><h3>Candidats à examiner en priorité</h3><p>Classement selon le score calculé</p></div>
+              <button class="text-btn" id="seeAllBtn">Voir toutes les candidatures →</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>CANDIDAT</th><th>POSTE</th><th>SCORE</th><th>STATUT</th><th></th></tr></thead>
+                <tbody id="priorityTable"></tbody>
+              </table>
+            </div>
+            <div id="emptyDashboard" class="empty-state hidden"><div class="empty-art">♙</div><h4>Aucune candidature pour le moment</h4><p>Ajoutez un candidat ou chargez les données de démonstration pour explorer le tableau de bord.</p><button class="primary-btn" id="emptyAddBtn">Ajouter un candidat</button><button class="secondary-btn" id="demoBtn">Charger la démonstration</button></div>
+          </section>
+
+          <aside class="panel insight-panel">
+            <div class="panel-heading"><div><h3>Comment lire les scores ?</h3><p>Barème indicatif sur 100</p></div></div>
+            <div class="score-legend">
+              <div><span class="legend-dot high"></span><div><strong>80–100 · Priorité élevée</strong><small>À examiner en premier</small></div></div>
+              <div><span class="legend-dot medium"></span><div><strong>60–79 · À examiner</strong><small>Correspondance intéressante</small></div></div>
+              <div><span class="legend-dot low"></span><div><strong>40–59 · Examen complémentaire</strong><small>Vérifier les éléments manquants</small></div></div>
+              <div><span class="legend-dot weak"></span><div><strong>0–39 · Faible correspondance</strong><small>Revoir les critères et le dossier</small></div></div>
+            </div>
+            <div class="info-callout"><span>ⓘ</span><p>Le score dépend des critères saisis et ne constitue pas une décision d'embauche. Vérifiez chaque candidature et appliquez les mêmes critères à tous les candidats.</p></div>
+          </aside>
+        </div>
+        <section class="panel recent-panel">
+          <div class="panel-heading"><div><h3>Activité récente</h3><p>Dernières candidatures enregistrées</p></div></div>
+          <div id="recentList" class="recent-list"></div>
+        </section>
+      </section>
+      <footer class="app-footer"><span>Talent Engine · Prototype de démonstration</span><span>Les données sont conservées dans ce navigateur.</span></footer>
+    </main>
+  </div>
+  <div id="detailModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card"><button class="modal-close" data-close-modal aria-label="Fermer">×</button><div id="modalContent"></div></div>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
